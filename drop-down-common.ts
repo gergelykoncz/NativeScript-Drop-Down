@@ -13,162 +13,189 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************** */
-import { ObservableArray } from "data/observable-array";
-import { CSSType, CoercibleProperty, EventData, Property, View, makeParser, makeValidator } from "ui/core/view";
-import { addWeakEventListener, removeWeakEventListener } from "ui/core/weak-event-listener";
-import { ItemsSource } from "ui/list-picker";
-import { TextAlignment } from "ui/text-base";
-import * as types from "utils/types";
-import { DropDown as DropDownDefinition, SelectedIndexChangedEventData, ValueItem, ValueList as ValueListDefinition } from ".";
+import {
+  CSSType,
+  CoercibleProperty,
+  EventData,
+  ItemsSource,
+  ObservableArray,
+  Property,
+  Utils,
+  View,
+  addWeakEventListener,
+  makeParser,
+  makeValidator,
+  removeWeakEventListener
+} from '@nativescript/core';
 
-export * from "ui/core/view";
+// tslint:disable-next-line:no-submodule-imports
+import { TextAlignment } from '@nativescript/core/ui/text-base';
 
-@CSSType("DropDown")
+import {
+  DropDown as DropDownDefinition,
+  SelectedIndexChangedEventData,
+  ValueItem,
+  ValueList as ValueListDefinition
+} from '.';
+
+export {
+  backgroundColorProperty,
+  colorProperty,
+  paddingBottomProperty,
+  paddingLeftProperty,
+  paddingRightProperty,
+  paddingTopProperty,
+  fontInternalProperty,
+  Length
+} from '@nativescript/core';
+
+@CSSType('DropDown')
 export abstract class DropDownBase extends View implements DropDownDefinition {
-    public static openedEvent = "opened";
-    public static closedEvent = "closed";
-    public static selectedIndexChangedEvent = "selectedIndexChanged";
+  public static openedEvent = 'opened';
+  public static closedEvent = 'closed';
+  public static selectedIndexChangedEvent = 'selectedIndexChanged';
 
-    public hint: string;
-    public itemsTextAlignment: TextAlignment;
-    public itemsPadding: string;
-    public selectedIndex: number;
-    public items: any[] | ItemsSource;
-    public accessoryViewVisible: boolean;
-    public isItemsSourceIn: boolean;
-    public isValueListIn: boolean;
+  public hint: string;
+  public itemsTextAlignment: TextAlignment;
+  public itemsPadding: string;
+  public selectedIndex: number;
+  public items: any[] | ItemsSource;
+  public accessoryViewVisible: boolean;
+  public isItemsSourceIn: boolean;
+  public isValueListIn: boolean;
 
-    public abstract open();
-    public abstract close();
-    public abstract refresh();
+  public abstract open();
+  public abstract close();
+  public abstract refresh();
 
-    public _getItemAsString(index: number) {
-        const items = this.items;
+  public _getItemAsString(index: number) {
+    const items = this.items;
 
-        if (!items) {
-            return " ";
-        }
-
-        if (types.isNullOrUndefined(index)) {
-            return null;
-        }
-
-        if (this.isValueListIn) {
-            return (items as ValueList<any>).getDisplay(index);
-        }
-
-        const item = this.isItemsSourceIn ? (this.items as ItemsSource).getItem(index) : this.items[index];
-        return (item === undefined || item === null) ? index + "" : item + "";
+    if (!items) {
+      return ' ';
     }
+
+    if (Utils.isNullOrUndefined(index)) {
+      return null;
+    }
+
+    if (this.isValueListIn) {
+      return (items as ValueList<any>).getDisplay(index);
+    }
+
+    const item = this.isItemsSourceIn ? (this.items as ItemsSource).getItem(index) : this.items[index];
+    return item === undefined || item === null ? index + '' : item + '';
+  }
 }
 
 export interface DropDownBase {
-    on(eventNames: string, callback: (data: EventData) => void, thisArg?: any);
-    on(event: "selectedIndexChanged", callback: (args: SelectedIndexChangedEventData) => void, thisArg?: any);
+  on(eventNames: string, callback: (data: EventData) => void, thisArg?: any);
+  on(event: 'selectedIndexChanged', callback: (args: SelectedIndexChangedEventData) => void, thisArg?: any);
 }
-
+// @ts-ignore
 export class ValueList<T> extends ObservableArray<ValueItem<T>> implements ValueListDefinition<T> {
-    private _array: Array<ValueItem<T>>;
+  private _array: ValueItem<T>[];
 
-    public getDisplay(index: number): string {
-        if (types.isNullOrUndefined(index)) {
-            return null;
-        }
-
-        if (index < 0 || index >= this.length) {
-            return "";
-        }
-
-        return this._array[index].display;
+  public getDisplay(index: number): string {
+    if (Utils.isNullOrUndefined(index)) {
+      return null;
     }
 
-    public getValue(index: number): T {
-        if (types.isNullOrUndefined(index) || index < 0 || index >= this.length) {
-            return null;
-        }
-
-        return this._array[index].value;
+    if (index < 0 || index >= this.length) {
+      return '';
     }
 
-    public getIndex(value: T): number {
-        let loop: number;
+    return this._array[index].display;
+  }
 
-        for (loop = 0; loop < this.length; loop++) {
-            if (this.getValue(loop) === value) {
-                return loop;
-            }
-        }
-
-        return null;
+  public getValue(index: number): T {
+    if (Utils.isNullOrUndefined(index) || index < 0 || index >= this.length) {
+      return null;
     }
+
+    return this._array[index].value;
+  }
+
+  public getIndex(value: T): number {
+    let loop: number;
+
+    for (loop = 0; loop < this.length; loop++) {
+      if (this.getValue(loop) === value) {
+        return loop;
+      }
+    }
+
+    return null;
+  }
 }
 
 export const selectedIndexProperty = new CoercibleProperty<DropDownBase, number>({
-    name: "selectedIndex",
-    defaultValue: null,
-    valueConverter: (v) => {
-        if (v === undefined || v === null) {
-            return null;
-        }
-
-        return parseInt(v, 10);
-    },
-    coerceValue: (target, value) => {
-        const items = target.items;
-        if (items && items.length !== 0) {
-            const max = items.length - 1;
-            if (value < 0) {
-                value = 0;
-            }
-            if (value > max) {
-                value = max;
-            }
-        }
-        else {
-            value = null;
-        }
-
-        return value;
+  name: 'selectedIndex',
+  defaultValue: null,
+  valueConverter: (v) => {
+    if (v === undefined || v === null) {
+      return null;
     }
+
+    return parseInt(v, 10);
+  },
+  coerceValue: (target, value) => {
+    const items = target.items;
+    if (items && items.length !== 0) {
+      const max = items.length - 1;
+      if (value < 0) {
+        value = 0;
+      }
+      if (value > max) {
+        value = max;
+      }
+    } else {
+      value = null;
+    }
+
+    return value;
+  }
 });
 selectedIndexProperty.register(DropDownBase);
 
 export const itemsProperty = new Property<DropDownBase, any[] | ItemsSource>({
-    name: "items",
-    valueChanged: (target, oldValue, newValue) => {
-        const getItem = newValue && (newValue as ItemsSource).getItem;
-        const getDisplay = newValue && (newValue as ValueList<any>).getDisplay;
+  name: 'items',
+  valueChanged: (target, oldValue, newValue) => {
+    const getItem = newValue && (newValue as ItemsSource).getItem;
+    const getDisplay = newValue && (newValue as ValueList<any>).getDisplay;
 
-        target.isItemsSourceIn = typeof getItem === "function";
-        target.isValueListIn = typeof getDisplay === "function";
+    target.isItemsSourceIn = typeof getItem === 'function';
+    target.isValueListIn = typeof getDisplay === 'function';
 
-        if (oldValue instanceof ObservableArray) {
-            removeWeakEventListener(oldValue, ObservableArray.changeEvent, target.refresh, target);
-        }
-
-        if (newValue instanceof ObservableArray) {
-            addWeakEventListener(newValue, ObservableArray.changeEvent, target.refresh, target);
-        }
+    if (oldValue instanceof ObservableArray) {
+      removeWeakEventListener(oldValue, ObservableArray.changeEvent, target.refresh, target);
     }
+
+    if (newValue instanceof ObservableArray) {
+      addWeakEventListener(newValue, ObservableArray.changeEvent, target.refresh, target);
+    }
+  }
 });
 itemsProperty.register(DropDownBase);
 
 export const hintProperty = new Property<DropDownBase, string>({
-    name: "hint",
-    defaultValue: ""
+  name: 'hint',
+  defaultValue: ''
 });
 hintProperty.register(DropDownBase);
 
-const textAlignmentConverter = makeParser<TextAlignment>(makeValidator<TextAlignment>("initial", "left", "center", "right"));
-export const itemsTextAlignmentProperty = new Property<DropDownBase, TextAlignment>({ 
-    name: "itemsTextAlignment", 
-    defaultValue: "initial", 
-    valueConverter: textAlignmentConverter 
+const textAlignmentConverter = makeParser<TextAlignment>(
+  makeValidator<TextAlignment>('initial', 'left', 'center', 'right')
+);
+export const itemsTextAlignmentProperty = new Property<DropDownBase, TextAlignment>({
+  name: 'itemsTextAlignment',
+  defaultValue: 'initial',
+  valueConverter: textAlignmentConverter
 });
 itemsTextAlignmentProperty.register(DropDownBase);
 
 export const itemsPaddingProperty = new Property<DropDownBase, string>({
-    name: "itemsPadding",
-    defaultValue: ""
+  name: 'itemsPadding',
+  defaultValue: ''
 });
 itemsPaddingProperty.register(DropDownBase);
